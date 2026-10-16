@@ -84,4 +84,5 @@ def moderate_comment(comment: str) -> ModerationResult:
 
 # --------- Moderation Agent ------
 def chat_with_assistant(message:str) -> str:
-    """Generate a response from t"""
+    """Generate a response from the Minzo conversation assitant.
+    """
