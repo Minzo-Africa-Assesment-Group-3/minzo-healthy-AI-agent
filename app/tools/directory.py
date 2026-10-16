@@ -84,7 +84,7 @@ async def get_business_service(business_id: str):
 """
 @tool
 async def list_counties(business_id: str):
-    """Get avaliable counties."""
+    ""Get avaliable counties.""
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f"{MINZO_API_URL}/counties",
@@ -98,7 +98,7 @@ async def list_counties(business_id: str):
 
 @tool
 async def list_cities(business_id: str):
-    """Get available cities."""
+    ""Get available cities.""
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f"{MINZO_API_URL}/cities",
