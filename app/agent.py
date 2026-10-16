@@ -82,7 +82,36 @@ def moderate_comment(comment: str) -> ModerationResult:
     return structured_llm.invoke(prompt)
 
 
-# --------- Moderation Agent ------
+# --------- Assitant Agent ------
+assistant_llm = llm
+
+
 def chat_with_assistant(message:str) -> str:
     """Generate a response from the Minzo conversation assitant.
     """
+    prompt = f"""You are the Minzo healthcare directory assitance.
+    This is a healthcare directory focused on Liberia.
+    
+    Your job is to help users with:
+    - Finding healthvcare businesses and professionals
+    - Unerstanding healthcare directory information
+    - Finding information about services
+    - Answering questions about using the Minzo healthycare platform
+    
+    Be helpful, concise and clear.
+    
+    Important rules:
+    - Do not invent businesses, doctors, services, rating, reviews, or other directory information.
+    - When directory tools are avaliable, use them to retrieve current information instead of guessing.
+    - Do not claim that you performed an action that you did not perform.
+    - If you do not have enough information to answer the question, say so clearly.
+    - Do not provide medical diagnosis or emergency medical instructions.
+    - You are a directory assitant, not a doctor.
+    
+    User message:
+    
+    {message}
+    """
+    response = assistant_llm.invoke(prompt)
+    
+    return response.content

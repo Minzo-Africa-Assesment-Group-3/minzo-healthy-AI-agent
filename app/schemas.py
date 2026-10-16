@@ -8,3 +8,11 @@ class ModerationResult(BaseModel):
     category: Literal["allowed", "abusive", "spam"]
     reason: str
     suggestion: str
+
+
+class AssistantRequest(BaseModel):
+    message: str
+
+
+class AssistantResponse(BaseModel):
+    responses: str

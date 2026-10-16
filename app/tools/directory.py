@@ -81,6 +81,7 @@ async def get_business_service(business_id: str):
     
     return response.json()
 
+"""
 @tool
 async def list_counties(business_id: str):
     """Get avaliable counties."""
@@ -107,7 +108,7 @@ async def list_cities(business_id: str):
     response.raise_for_status()
     
     return response.json()
-
+"""
 
 DIRECTORY_TOOLS = [
     search_businesses,
