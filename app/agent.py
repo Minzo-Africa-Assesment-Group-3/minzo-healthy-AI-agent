@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 
 from app.schemas import ModerationResult
+from app.tools.directory import DIRECTORY_TOOLS
 
 
 load_dotenv()
@@ -83,13 +84,13 @@ def moderate_comment(comment: str) -> ModerationResult:
 
 
 # --------- Assitant Agent ------
-assistant_llm = llm
+assistant_llm = llm.bind_tools(DIRECTORY_TOOLS)
 
 
 def chat_with_assistant(message:str) -> str:
     """Generate a response from the Minzo conversation assitant.
     """
-    prompt = f"""You are the Minzo healthcare directory assitance.
+    prompt = """You are the Minzo healthcare directory assitance.
     This is a healthcare directory focused on Liberia.
     
     Your job is to help users with:
@@ -108,10 +109,12 @@ def chat_with_assistant(message:str) -> str:
     - Do not provide medical diagnosis or emergency medical instructions.
     - You are a directory assitant, not a doctor.
     
-    User message:
-    
-    {message}
     """
-    response = assistant_llm.invoke(prompt)
+    response = assistant_llm.invoke(
+        [
+            ("system", system_prompt),
+            ("human", message),
+        ]
+    )
     
     return response.content
