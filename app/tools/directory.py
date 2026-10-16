@@ -115,6 +115,4 @@ DIRECTORY_TOOLS = [
     get_business_service,
     get_business_ratings,
     get_business_reviews,
-    list_counties,
-    list_cities
 ]
