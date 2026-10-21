@@ -125,6 +125,7 @@ def chat_with_assistant(message:str) -> str:
         system_prompt,
         HumanMessage(content=message),
     ]
-    response = assistant_llm.ainvoke(message)
+    
+    response = assistant_llm.ainvoke(messages)
     
     return response.content
