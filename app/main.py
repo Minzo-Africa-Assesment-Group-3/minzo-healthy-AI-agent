@@ -1,3 +1,4 @@
+from uuid import uuid4
 from fastapi import FastAPI,  HTTPException, status
 from pydantic import BaseModel, Field
 
@@ -50,12 +51,20 @@ def moderate(request: CommentRequest):
             detail="The moderation service is temporarily unavailable. Please try again later.",
         )      
 
-@app.post("/assistant", response_model=AssistantResponse)
-def assistant(request: AssistantRequest):
+@app.post("/v1/assistant/messages", response_model=AssistantResponse)
+async def ai_assistant(request: AssistantRequest):
     try:
-        result = chat_with_assistant(request.message)
+        result = await chat_with_assistant(
+            message=request.message,
+            history=[item.model_dump() for item in request.history],
+            business_context=request.business_context
+            )
 
-        return AssistantResponse(respons=result)
+        return AssistantResponse(
+            conversation_id=(request.consversation_id or str(uuid4())),
+            response=result,
+            proposed_action=None,
+            )
 
     except Exception:
         raise HTTPException(
