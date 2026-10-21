@@ -107,7 +107,7 @@ async def get_business_reviews(
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f"{MINZO_API_URL}/api/v1/businesses/{business_id}/reviews",
-            params=params
+            params=params,
             timeout=10.0,
         )
         
