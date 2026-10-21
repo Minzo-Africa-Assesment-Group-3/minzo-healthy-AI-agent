@@ -31,9 +31,9 @@ class AssistantRequest(BaseModel):
 
 
 @app.get("/")
-def root():
+def Healthcare():
     return{
-        "message": "Review Moderation API is running. Add /docs to url to see the documentation."
+        "message": "Healthcare API is running. Add /docs to url to see the documentation."
     }
 
 

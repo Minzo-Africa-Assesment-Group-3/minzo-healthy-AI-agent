@@ -112,7 +112,7 @@ def chat_with_assistant(message:str) -> str:
     """
     response = assistant_llm.invoke(
         [
-            ("system", system_prompt),
+            ("system", prompt),
             ("human", message),
         ]
     )
