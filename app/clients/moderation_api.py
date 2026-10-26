@@ -3,7 +3,7 @@ import asyncio
 import logging
 
 import httpx
-from pydantic import ValidationError
+from pydantic import ValidationError, SecretStr
 
 from app.core.config import (
     AI_MODERATION_SERVICE_KEY,
@@ -55,7 +55,11 @@ class ModerationApiClient:
             f"{review_id}/moderation"
         )
 
-        service_key = self._service_key.get_secret_value()
+        service_key = (
+            self._service_key.get_secret_value()
+            if isinstance(self._service_key, SecretStr)
+            else self._service_key
+        )
 
         for attempt in range(3):
             response = None
@@ -122,10 +126,16 @@ class ModerationApiClient:
                         ) from None
 
                 if response.status_code < 500:
+                    logger.warning(
+                        "Moderation callback rejected: status=%s, response=%s",
+                        response.status_code,
+                        response.text[:1000],
+                    )
                     raise ModerationCallbackError(
                         502,
                         "callback_rejected",
-                        "The backend rejected the moderation callback.",
+                        "The backend rejected the moderation callback. "
+                        f"Backend status: {response.status_code}.",
                     )
 
             if attempt < 2:

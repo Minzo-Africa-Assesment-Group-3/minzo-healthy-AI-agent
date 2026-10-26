@@ -1,4 +1,4 @@
-
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 
 import httpx
@@ -18,6 +18,8 @@ from app.schemas.review_evaluation import (
 )
 from app.services.review_evaluation import evaluate_review
 
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/v1/moderation",
@@ -55,7 +57,8 @@ async def evaluate_customer_review(
         ) from exc
 
     except Exception:
+        logger.exception("Unexpected error during review moderation")
         raise HTTPException(
             status_code=503,
             detail="Review moderation is temporarily unavailable.",
-        ) from None
+    ) from None

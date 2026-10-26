@@ -30,3 +30,4 @@ async def health_check():
 
 app.include_router(moderation_router)
 app.include_router(assistant_router)
+

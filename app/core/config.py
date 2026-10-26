@@ -92,7 +92,9 @@ X_SERVICE_KEY = (
 )
 
 AI_MODERATION_SERVICE_KEY = (
-    _settings.ai_moderation_service_key.get_secret_value()
+    _settings.ai_moderation_service_key
+    if isinstance(_settings.ai_moderation_service_key, SecretStr)
+    else SecretStr(_settings.ai_moderation_service_key)
     if _settings.ai_moderation_service_key
     else None
 )
