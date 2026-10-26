@@ -1,74 +1,32 @@
-from uuid import uuid4
-from fastapi import FastAPI,  HTTPException, status
-from pydantic import BaseModel, Field
 
-from app.agent import moderate_comment, chat_with_assistant
-from app.schemas import AssistantResponse, AssistantRequest
+from fastapi import FastAPI
+
+from app.api.routes.assistant import router as assistant_router
+from app.api.routes.moderation import router as moderation_router
 
 
 app = FastAPI(
     title="Minzo AI Service",
-    description="AI-powered moderation service for healthcare reviews",
+    description=(
+        "AI-powered healthcare review moderation and "
+        "assistant services for the Minzo healthcare directory."
+    ),
     version="1.0.0",
 )
 
 
-class CommentRequest(BaseModel):
-    comment: str = Field(
-        ...,
-        min_length=1,
-        max_length=2000,
-        description="Healthcare review to mo",
-    )
-
-
-class AssistantRequest(BaseModel):
-    message: str = Field(
-        ...,
-        min_length=1,
-        max_length=2000,
-        description="User message for the Minzo assistant",
-    )
-
-
-@app.get("/")
-def Healthcare():
-    return{
-        "message": "Healthcare API is running. Add /docs to url to see the documentation."
+@app.get("/", tags=["Health"])
+async def health_check():
+    """Confirm that the AI service is running."""
+    return {
+        "message": "Minzo AI Service is running.",
+        "documentation": "/docs",
+        "services": [
+            "review moderation",
+            "healthcare directory assistant",
+        ],
     }
 
 
-@app.post("/moderate")
-def moderate(request: CommentRequest):
-    try:
-        result = moderate_comment(request.comment)
-
-        return result
-
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The moderation service is temporarily unavailable. Please try again later.",
-        )      
-
-@app.post("/v1/assistant/messages", response_model=AssistantResponse)
-async def ai_assistant(request: AssistantRequest):
-    try:
-        result = await chat_with_assistant(
-            message=request.message,
-            history=[item.model_dump() for item in request.history],
-            business_context=request.business_context
-            )
-
-        return AssistantResponse(
-            conversation_id=(request.consversation_id or str(uuid4())),
-            response=result,
-            proposed_action=None,
-            )
-
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The moderation service is temporarily unavailable. Please try again later.",
-        )      
-
+app.include_router(moderation_router)
+app.include_router(assistant_router)

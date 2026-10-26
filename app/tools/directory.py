@@ -1,198 +1,167 @@
-import os
-import httpx
-from dotenv import load_dotenv
-from langchain_core.tools import tool
 
-load_dotenv()
+import json
+from typing import Annotated, Any
 
-MINZO_API_URL = os.getenv(
-    "MINZO_API_URL",
-    "http://localhost:3000",
-)
+from langchain_core.tools import BaseTool, tool
+from pydantic import Field
+
+from app.clients.express_api import ExpressApiClient, ExpressApiError
 
 
-@tool
-async def search_businesses(
-    search: str | None = None,
-    county: str | None = None,
-    city: str | None = None,
-    service: str | None = None,
-    latitude: float | None = None,
-    longitude: float | None = None,
-    radius_km: float | None = None,
-    sort: str | None = None,
-    page_number: int | None = None,
-    page_size: int | None = None,
-    
-):
-    """Search the Minzo directory for business."""
-    params = {}
-    
-    if search:
-        params["search"] = search
-    if county:
-            params["county"] = county
-    if city:
-        params["city"] = city
-    if service:
-        params["service"] = service
-    if latitude is not None and longitude is not None:
-        params["latitude"] = latitude
-        params["longitude"] = longitude
-
-        if radius_km is not None:
-            params["radiusKM"] = radius_km
-
-    if sort:
-        params["sort"] = sort
-    if page_number is not None:
-        params["pageNumber"] = page_number
-    if page_size is not None:
-        params["pageSize"] = page_size
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{MINZO_API_URL}/api/v1/businesses",
-            params=params,
-            timeout=10.0,
-        )
-        
-    response.raise_for_status()
-    
-    return response.json()
+def _format_result(result: Any) -> str:
+    """Convert backend data into text the assistant can understand."""
+    return json.dumps(result, ensure_ascii=False, default=str)
 
 
-@tool
-async def get_business_profile(slug: str):
-    """Get Public profile of a specific healthcare business using its slug."""
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{MINZO_API_URL}/api/v1/businesses/{slug}",
-            timeout=10.0,
-        )
-        
-    response.raise_for_status()
-    
-    return response.json()
+def build_directory_tools(api: ExpressApiClient) -> list[BaseTool]:
+    """Build read-only tools for the healthcare directory."""
 
+    @tool
+    async def search_healthcare_businesses(
+        search: Annotated[
+            str, Field(description="Name or keyword to search for")
+        ] = "",
+        county: Annotated[str, Field(description="County to search in")] = "",
+        city: Annotated[str, Field(description="City to search in")] = "",
+        service_id: Annotated[
+            str, Field(description="Healthcare service ID")
+        ] = "",
+        page: Annotated[int, Field(ge=1, description="Page number")] = 1,
+    ) -> str:
+        """Find healthcare professionals and institutions in the directory."""
+        try:
+            result = await api.search_businesses(
+                search=search.strip() or None,
+                county=county.strip() or None,
+                city=city.strip() or None,
+                service_id=service_id.strip() or None,
+                page=page,
+                page_size=10,
+            )
+            return _format_result(result)
+        except ExpressApiError:
+            return "The directory search is temporarily unavailable."
 
-@tool
-async def get_business_ratings(business_id: str):
-    """Get rating and review count for a (healthcare) business."""
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{MINZO_API_URL}/api/v1/businesses/{business_id}/rating",
-            timeout=10.0,
-        )
-        
-    response.raise_for_status()
-    
-    return response.json()
+    @tool
+    async def get_healthcare_business(
+        business_slug: Annotated[
+            str, Field(description="The exact business slug from directory results")
+        ],
+    ) -> str:
+        """Retrieve details about one healthcare business."""
+        try:
+            return _format_result(await api.get_business(business_slug.strip()))
+        except ExpressApiError:
+            return "Business details are temporarily unavailable."
 
+    @tool
+    async def get_healthcare_business_reviews(
+        business_id: Annotated[
+            str, Field(description="The business ID from directory results")
+        ],
+        page: Annotated[int, Field(ge=1, description="Page number")] = 1,
+    ) -> str:
+        """Retrieve reviews for a healthcare business."""
+        try:
+            result = await api.get_business_reviews(
+                business_id=business_id.strip(),
+                page=page,
+                page_size=10,
+            )
+            return _format_result(result)
+        except ExpressApiError:
+            return "Business reviews are temporarily unavailable."
 
-@tool
-async def get_business_reviews(
-    business_id: str,
-    page_number: int | None = None,
-    page_size: int |None = None
-):
-    """Get customer reviews for a (healthcare) business."""
-    params = {}
-    
-    if page_number is not None:
-        params["pageNumber"] = page_number
-    if page_size is not None:
-            params["pageSize"] = page_size
-            
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{MINZO_API_URL}/api/v1/businesses/{business_id}/reviews",
-            params=params,
-            timeout=10.0,
-        )
-        
-    response.raise_for_status()
-    
-    return response.json()
+    @tool
+    async def get_healthcare_business_rating(
+        business_id: Annotated[
+            str, Field(description="The business ID from directory results")
+        ],
+    ) -> str:
+        """Retrieve the rating summary for a healthcare business."""
+        try:
+            return _format_result(
+                await api.get_business_rating(business_id.strip())
+            )
+        except ExpressApiError:
+            return "The business rating is temporarily unavailable."
 
+    @tool
+    async def search_healthcare_services(
+        search: Annotated[
+            str,
+            Field(description="Healthcare service name; enter at least two characters"),
+        ] = "",
+    ) -> str:
+        """Find healthcare services by name. Search terms must contain at least two characters."""
+        search = search.strip()
 
-@tool
-async def find_services(
-    search: str,
-    limit: int | None = None,
-):
-    """Find healthcare services."""
-    params =  {"search": search},
-    
-    if limit is not None:
-        params["limit"] = limit
-        
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{MINZO_API_URL}/api/v1/services",
-            paramas=params,
-            timeout=10.0,
-        )
-        
-    response.raise_for_status()
-    
-    return response.json()
+        if len(search) < 2:
+            return "Please provide at least two characters to search for a service."
 
+        try:
+            return _format_result(
+                await api.search_services(search=search)
+            )
+        except ExpressApiError:
+            return "Healthcare services are temporarily unavailable."
 
-@tool
-async def find_counties(
-    search: str,
-    limit: int | None = None
-):
-    """Find healthcare service within a county, matching a search term."""
-    params = {
-        "search": search,
-        }
-    
-    if limit is not None:
-        params["limit"] = limit
-        
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{MINZO_API_URL}/api/v1/services",
-            params=params,
-            timeout=10.0,
-        )
-        
-    response.raise_for_status()
-    
-    return response.json()
+    @tool
+    async def search_counties(
+        search: Annotated[
+            str,
+            Field(description="County name; enter at least two characters"),
+        ] = "",
+    ) -> str:
+        """Find counties by name. Search terms must contain at least two characters."""
+        search = search.strip()
 
+        if len(search) < 2:
+            return "Please provide at least two characters to search for a county."
 
-@tool
-async def find_cities(search: str, county_id: str | None = None, limit: int | None = None):
-    """Find  available cities or towns matching a search term."""
-    params = {
-        "search": search,
-    }
-    if county_id is not None:
-        params["countyId"] = county_id
-    if limit is not None:
-        params["limit"] = limit
-        
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{MINZO_API_URL}/api/v1/cities",
-            params=params,
-            timeout=10.0,
-        )
-        
-    response.raise_for_status()
-    
-    return response.json()
+        try:
+            return _format_result(
+                await api.search_counties(search=search)
+            )
+        except ExpressApiError:
+            return "County information is temporarily unavailable."
 
+    @tool
+    async def search_cities(
+        county_id: Annotated[
+            str, Field(description="County ID returned by the county search")
+        ],
+        search: Annotated[
+            str,
+            Field(description="City name; enter at least two characters"),
+        ] = "",
+    ) -> str:
+        """Find cities within a selected county. Use a real county ID from directory results."""
+        county_id = county_id.strip()
+        search = search.strip()
 
-DIRECTORY_TOOLS = [
-    search_businesses,
-    get_business_profile,
-    get_business_ratings,
-    get_business_reviews,
-    find_counties,
-    find_cities,
-    find_services,
-]
+        if not county_id:
+            return "Please select a valid county from the directory results first."
+
+        if len(search) < 2:
+            return "Please provide at least two characters to search for a city."
+
+        try:
+            return _format_result(
+                await api.search_cities(
+                    county_id=county_id,
+                    search=search,
+                )
+            )
+        except ExpressApiError:
+            return "City information is temporarily unavailable."
+
+    return [
+        search_healthcare_businesses,
+        get_healthcare_business,
+        get_healthcare_business_reviews,
+        get_healthcare_business_rating,
+        search_healthcare_services,
+        search_counties,
+        search_cities,
+    ]
