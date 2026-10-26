@@ -9,7 +9,6 @@ class ModerationResult(BaseModel):
     reason: str
     suggestion: str
 
-
 class ChatMessage(BaseModel):
     role: str
     content: str
